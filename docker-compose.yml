@@ -1,0 +1,87 @@
+version: '3.9'
+
+services:
+  migrate:
+    image: migrate/migrate
+    networks:
+      - Staffer
+    volumes:
+      - ./migrations:/migrations
+    command: [ "-path", "/migrations", "-database", 
+              "postgres://postgres:feruza1727@postgres-db:5432/timeCapsule?sslmode=disable",
+              "up" ]
+    depends_on:
+      - postgres-db
+
+  postgres-db:
+    container_name: postgres
+    image: postgres:latest
+    environment:
+      PGUSER: postgres
+      POSTGRES_PASSWORD: feruza1727
+      POSTGRES_DB: timeCapsule
+    volumes:
+      - db:/post-database/post-memory
+    ports:
+      - "5433:5432"
+    networks:
+      - Staffer
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  mongo-db:
+    container_name: mongo
+    image: mongo:latest
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongo
+      MONGO_INITDB_ROOT_PASSWORD: feruza1727
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27018:27017"
+    networks:
+      - Staffer
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "mongo --eval 'db.runCommand({ ping: 1 })'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  company-service:
+    container_name: company
+    build: .
+    depends_on:
+      - postgres-db
+      - mongo-db
+
+    ports:
+      - "7060:7060"
+    networks:
+      - Staffer
+    environment:
+      - DB_HOST=postgres-db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=feruza1727
+      - DB_NAME=staffer
+      - MONGO_HOST=mongo-db
+      - MONGO_PORT=27017
+      - MONGO_USER=feruza
+      - MONGO_PASSWORD=feruza1727
+      - MONGO_DB=staffer
+
+networks:
+  Staffer:
+      external: true
+      name: Staffer
+      driver: bridge
+
+
+volumes:
+  db:
+  mongo-data:
