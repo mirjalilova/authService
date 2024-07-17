@@ -1,5 +1,3 @@
-CREATE TYPE user_role AS ENUM ('admin', 'user');
-
 -- USER TABLE
 CREATE TABLE IF NOT EXISTS users (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -7,7 +5,6 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(100) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     full_name VARCHAR(100),
-    role user_role NOT NULL,
     date_of_birth DATE,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
@@ -24,3 +21,13 @@ CREATE TABLE IF NOT EXISTS settings (
     theme VARCHAR(255) NOT NULL DEFAULT 'light',
     updated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- TOKEN
+CREATE TABLE IF NOT EXISTS tokens (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id),
+    token VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    deleted_at BIGINT DEFAULT 0
+)

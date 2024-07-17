@@ -15,14 +15,13 @@ const (
 	signingKey = "secret_key"
 )
 
-func GenerateJWTToken(user *pb.User) *pb.LoginRes {
+func GenerateJWTToken(user *pb.User) (*pb.LoginRes, string) {
 	accessToken := jwt.New(jwt.SigningMethodHS256)
 	refreshToken := jwt.New(jwt.SigningMethodHS256)
 
 	claims := accessToken.Claims.(jwt.MapClaims)
 	claims["user_id"] = user.Id
 	claims["username"] = user.Username
-	claims["role"] = user.Role
 	claims["email"] = user.Email
 	claims["iat"] = time.Now().Unix()
 	claims["exp"] = time.Now().Add(180 * time.Minute).Unix()
@@ -40,14 +39,13 @@ func GenerateJWTToken(user *pb.User) *pb.LoginRes {
 	if err != nil {
 		log.Fatal("error while generating refresh token : ", err)
 	}
-	fmt.Println("Refresh token : ", refresh)
 
 	res := &pb.LoginRes{
 		Token:     access,
 		ExpiresAt: time.Now().Add(180 * time.Minute).Format("2006-01-02 15:04:05"),
 	}
 
-	return res
+	return res, refresh
 }
 
 func ValidateToken(tokenStr string) (bool, error) {

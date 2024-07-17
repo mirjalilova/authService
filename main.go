@@ -1,55 +1,58 @@
 package main
 
 import (
-	"net"
+	"context"
+	"log"
 
-	"golang.org/x/exp/slog"
+	"github.com/go-redis/redis/v8"
 
-	cf "github.com/mirjalilova/authService/config"
-
-	pb "github.com/mirjalilova/authService/genproto/auth"
+	"github.com/mirjalilova/authService/api"
+	_ "github.com/mirjalilova/authService/api/docs"
+	"github.com/mirjalilova/authService/api/handlers"
+	"github.com/mirjalilova/authService/config"
 	"github.com/mirjalilova/authService/service"
 	"github.com/mirjalilova/authService/storage/postgres"
-
-	"path/filepath"
-	"runtime"
-
-	"google.golang.org/grpc"
-)
-
-var (
-	_, b, _, _ = runtime.Caller(0)
-	basepath   = filepath.Dir(b)
+	kafka "github.com/mirjalilova/authService/consumer"
 )
 
 func main() {
-	config := cf.Load()
-	db, err := postgres.NewPostgresStorage(config)
+	cfg := config.Load()
+
+	db, err := postgres.NewPostgresStorage(cfg)
 	if err != nil {
-		slog.Error("can't connect to db: %v", err)
-		return
+		log.Fatalf("can't connect to db: %v", err)
 	}
 	defer db.Db.Close()
 
-	listener, err := net.Listen("tcp", config.AUTH_PORT)
-	if err != nil {
-		slog.Error("can't listen: %v", err)
-		return
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	})
+
+	if _, err := rdb.Ping(context.Background()).Result(); err != nil {
+		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
 
-	s := grpc.NewServer()
-	pb.RegisterAuthServiceServer(s, service.NewAuthService(db))
-	pb.RegisterUserServiceServer(s, service.NewUserService(db))
+	brokers := []string{"localhost:9092"}
 
-	slog.Info("server started port", config.COMPANY_PORT)
-	if err := s.Serve(listener); err != nil {
-		slog.Error("can't serve: %v", err)
-		return
+	kcm := kafka.NewKafkaConsumerManager()
+	authService := service.NewAuthService(db)
+
+	if err := kcm.RegisterConsumer(brokers, "reg-user", "auth", kafka.UserRegisterHandler(authService)); err != nil {
+		if err == kafka.ErrConsumerAlreadyExists {
+			log.Printf("Consumer for topic 'reg-user' already exists")
+		} else {
+			log.Fatalf("Error registering consumer: %v", err)
+		}
 	}
+
+	h := handlers.NewHandler(authService, rdb)
+
+	router := api.Engine(h)
+	if err := router.Run(cfg.AUTH_PORT); err != nil {
+		log.Fatalf("can't start server: %v", err)
+	}
+
+	log.Printf("Server started on port %s", cfg.AUTH_PORT)
 }
-
-
-
-
-
-

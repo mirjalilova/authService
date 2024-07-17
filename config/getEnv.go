@@ -9,8 +9,11 @@ import (
 )
 
 type Config struct {
-	AUTH_PORT    string
-	COMPANY_PORT string
+	AUTH_PORT     string
+	USER_PORT     string
+	MEMORY_PORT   string
+	API_GETEWAY   string
+	TIMELINE_PORT string
 
 	DB_HOST     string
 	DB_PORT     int
@@ -28,8 +31,11 @@ func Load() Config {
 
 	config := Config{}
 
-	config.AUTH_PORT = cast.ToString(coalesce("AUTH_PORT", ":8088"))
-	config.COMPANY_PORT = cast.ToString(coalesce("COMPANY_PORT", ":50072"))
+	config.AUTH_PORT = cast.ToString(coalesce("AUTH_PORT", ":8090"))
+	config.USER_PORT = cast.ToString(coalesce("USER_PORT", ":50072"))
+	config.API_GETEWAY = cast.ToString(coalesce("API_GETEWAY", ":50072"))
+	config.MEMORY_PORT = cast.ToString(coalesce("MEMORY_PORT", ":50072"))
+	config.TIMELINE_PORT = cast.ToString(coalesce("TIMELINE_PORT", ":50072"))
 
 	config.DB_HOST = cast.ToString(coalesce("DB_HOST", "localhost"))
 	config.DB_PORT = cast.ToInt(coalesce("DB_PORT", 5432))

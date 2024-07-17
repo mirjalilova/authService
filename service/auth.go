@@ -50,3 +50,11 @@ func (s *AuthService) ResetPassword(ctx context.Context, req *pb.ResetPassReq) (
     }
     return res, nil
 }
+
+func (s *AuthService) RefreshToken(ctx context.Context, req *pb.RefToken) (*pb.Void, error) {
+	res, err := s.storage.AuthS.RefreshToken(req)
+    if err != nil {
+        return nil, err
+    }
+    return res, nil
+}
