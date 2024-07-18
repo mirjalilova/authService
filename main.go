@@ -3,16 +3,21 @@ package main
 import (
 	"context"
 	"log"
+	"net"
 
 	"github.com/go-redis/redis/v8"
+	"google.golang.org/grpc"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/mirjalilova/authService/api"
 	_ "github.com/mirjalilova/authService/api/docs"
 	"github.com/mirjalilova/authService/api/handlers"
 	"github.com/mirjalilova/authService/config"
+	kafka "github.com/mirjalilova/authService/consumer"
+	pb "github.com/mirjalilova/authService/genproto/auth"
 	"github.com/mirjalilova/authService/service"
 	"github.com/mirjalilova/authService/storage/postgres"
-	kafka "github.com/mirjalilova/authService/consumer"
 )
 
 func main() {
@@ -38,14 +43,37 @@ func main() {
 
 	kcm := kafka.NewKafkaConsumerManager()
 	authService := service.NewAuthService(db)
+	userService := service.NewUserService(db)
 
 	if err := kcm.RegisterConsumer(brokers, "reg-user", "auth", kafka.UserRegisterHandler(authService)); err != nil {
 		if err == kafka.ErrConsumerAlreadyExists {
-			log.Printf("Consumer for topic 'reg-user' already exists")
+			slog.Warn("Consumer for topic 'reg-user' already exists")
 		} else {
-			log.Fatalf("Error registering consumer: %v", err)
+			slog.Error("Error registering consumer: %v", err)
 		}
 	}
+	if err := kcm.RegisterConsumer(brokers, "upd-user", "eval", kafka.UserEditProfileHandler(userService)); err != nil {
+		if err == kafka.ErrConsumerAlreadyExists {
+			slog.Warn("Consumer for topic 'upd-user' already exists")
+		} else {
+			slog.Error("Error registering consumer: %v", err)
+		}
+	}
+
+	listener, err := net.Listen("tcp", "auth" + cfg.USER_PORT)
+	if err != nil {
+		slog.Error("can't listen: %v", err)
+	}
+
+	s := grpc.NewServer()
+	pb.RegisterUserServiceServer(s, userService)
+
+	go func() {
+		slog.Info("gRPC server started on port %s", cfg.USER_PORT)
+		if err := s.Serve(listener); err != nil {
+			slog.Error("can't serve: %v", err)
+		}
+	}()
 
 	h := handlers.NewHandler(authService, rdb)
 
@@ -54,5 +82,5 @@ func main() {
 		log.Fatalf("can't start server: %v", err)
 	}
 
-	log.Printf("Server started on port %s", cfg.AUTH_PORT)
+	log.Printf("REST server started on port %s", cfg.AUTH_PORT)
 }

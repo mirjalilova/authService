@@ -11,9 +11,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const (
-	signingKey = "secret_key"
-)
+const signingKey = "secret_key"
 
 func GenerateJWTToken(user *pb.User) (*pb.LoginRes, string) {
 	accessToken := jwt.New(jwt.SigningMethodHS256)
@@ -21,23 +19,21 @@ func GenerateJWTToken(user *pb.User) (*pb.LoginRes, string) {
 
 	claims := accessToken.Claims.(jwt.MapClaims)
 	claims["user_id"] = user.Id
-	claims["username"] = user.Username
 	claims["email"] = user.Email
 	claims["iat"] = time.Now().Unix()
 	claims["exp"] = time.Now().Add(180 * time.Minute).Unix()
 	access, err := accessToken.SignedString([]byte(signingKey))
 	if err != nil {
-		log.Fatal("error while generating access token : ", err)
+		log.Fatal("error while generating access token: ", err)
 	}
 
 	rftClaims := refreshToken.Claims.(jwt.MapClaims)
 	rftClaims["user_id"] = user.Id
-
 	rftClaims["iat"] = time.Now().Unix()
 	rftClaims["exp"] = time.Now().Add(24 * time.Hour).Unix()
 	refresh, err := refreshToken.SignedString([]byte(signingKey))
 	if err != nil {
-		log.Fatal("error while generating refresh token : ", err)
+		log.Fatal("error while generating refresh token: ", err)
 	}
 
 	res := &pb.LoginRes{
@@ -63,7 +59,7 @@ func ExtractClaim(tokenStr string) (jwt.MapClaims, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parsing token: %w", err)
 	}
-	fmt.Print(token.Claims)
+
 	if !token.Valid {
 		return nil, errors.New("invalid token")
 	}

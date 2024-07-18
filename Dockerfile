@@ -22,5 +22,6 @@ COPY .env .env
 RUN chmod +x auth
 
 EXPOSE 8090
+EXPOSE 8088
 
 CMD ["./auth"]

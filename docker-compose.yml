@@ -23,7 +23,7 @@ services:
     volumes:
       - db:/post-database/post-memory
     ports:
-      - "5433:5432"
+      - "5434:5432"
     networks:
       - Time
     restart: unless-stopped
@@ -38,9 +38,11 @@ services:
     build: .
     depends_on:
       - postgres-db
+      - kafka
 
     ports:
       - "8090:8090"
+      - "8088:8088"
     networks:
       - Time
     environment:
@@ -49,30 +51,43 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=feruza1727
       - DB_NAME=timecapsule
+      - KAFKA_BROKER=kafka:9092
 
-  user-service:
-  container_name: user
-  build: .
-  depends_on:
-    - postgres-db
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.4
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 22181:2181
+    networks:
+      - Time
 
-  ports:
-    - "8088:8088"
-  networks:
-    - Time
-  environment:
-    - DB_HOST=postgres-db
-    - DB_PORT=5432
-    - DB_USER=postgres
-    - DB_PASSWORD=feruza1727
-    - DB_NAME=timecapsule
+  kafka:
+    image: confluentinc/cp-kafka:7.4.4
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - 29092:29092
+    networks:
+      - GLhost
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+
 
 networks:
   Time:
-      external: true
-      name: Time
-      driver: bridge
-
+    external: true
+    name: Time
+    driver: bridge
 
 volumes:
   db:
