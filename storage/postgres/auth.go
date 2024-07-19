@@ -22,12 +22,26 @@ func NewAuthRepo(db *sql.DB) *AuthRepo {
 func (r *AuthRepo) Register(req *pb.RegisterReq) (*pb.Void, error) {
 	res := &pb.Void{}
 
-	query := `INSERT INTO users (username, email, password, full_name, date_of_birth) VALUES ($1, $2, $3, $4, $5)`
-	_, err := r.db.Exec(query, req.Username, req.Email, req.Password, req.FullName, req.DateOfBirth)
+	tr, err := r.db.Begin()
+	if err!= nil {
+        return nil, err
+    }
+
+	var id string
+	query := `INSERT INTO users (username, email, password, full_name, date_of_birth) VALUES ($1, $2, $3, $4, $5) RETURNING id`
+	err = tr.QueryRow(query, req.Username, req.Email, req.Password, req.FullName, req.DateOfBirth).Scan(&id)
 	if err != nil {
+		tr.Rollback()
 		return nil, err
 	}
 
+	query = `INSERT INTO settings (user_id) VALUES ($1)`
+	_, err = tr.Exec(query, id)
+	if err!= nil {
+        tr.Rollback()
+        return nil, err
+    }
+	
 	return res, nil
 }
 

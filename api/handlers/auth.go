@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/go-redis/redis"
@@ -49,6 +50,12 @@ func (h *Handlers) RegisterUser(c *gin.Context) {
 	}
 
 	req.Password = password
+
+	if isValidEmail(req.Email) {
+		fmt.Println("Valid email")
+	} else {
+		fmt.Println("Invalid email")
+	}
 
 	input, err := json.Marshal(req)
 	if err != nil {
@@ -94,11 +101,11 @@ func (h *Handlers) LoginUser(c *gin.Context) {
 
 	token, refToken := t.GenerateJWTToken(res)
 	_, err = h.Auth.RefreshToken(context.Background(), &auth.RefToken{UserId: res.Id, Token: refToken})
-	if err!= nil {
-        log.Printf("failed to refresh token: %v", err)
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err})
-        return
-    }
+	if err != nil {
+		log.Printf("failed to refresh token: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		return
+	}
 
 	c.JSON(http.StatusOK, token)
 }
@@ -200,4 +207,10 @@ func (h *Handlers) ResetPassword(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Password reset successfully"})
+}
+
+func isValidEmail(email string) bool {
+	const emailRegexPattern = `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	re := regexp.MustCompile(emailRegexPattern)
+	return re.MatchString(email)
 }

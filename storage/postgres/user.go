@@ -22,6 +22,7 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 func (r *UserRepo) GetProfile(req *pb.GetById) (*pb.UserRes, error) {
 	res := &pb.UserRes{}
 
+	var date string
 	query := `SELECT id, username, email, full_name, date_of_birth FROM users WHERE id = $1`
 	err := r.db.QueryRow(query, req.Id).
 		Scan(
@@ -29,13 +30,15 @@ func (r *UserRepo) GetProfile(req *pb.GetById) (*pb.UserRes, error) {
 			&res.Username,
 			&res.Email,
 			&res.FullName,
-			&res.DateOfBirth,
+			&date,
 		)
 	if err == sql.ErrNoRows {
 		return nil, err
 	} else if err != nil {
 		return nil, err
 	}
+
+	res.DateOfBirth = date[:10]
 
 	return res, nil
 }
@@ -98,7 +101,7 @@ func (r *UserRepo) ChangePassword(req *pb.ChangePasswordReq) (*pb.Void, error) {
 func (r *UserRepo) GetSetting(req *pb.GetById) (*pb.Setting, error) {
 	res := &pb.Setting{}
 
-	query := `SELECT privacy_level, notification, language, theme FROM settings WHERE id = $1`
+	query := `SELECT privacy_level, notification, language, theme FROM settings WHERE user_id = $1`
 	err := r.db.QueryRow(query, req.Id).
 		Scan(
 			&res.PrivacyLevel,
@@ -147,7 +150,7 @@ func (r *UserRepo) EditSetting(req *pb.SettingReq) (*pb.Void, error) {
         query += ", " + strings.Join(conditions, ", ")
     }
 
-	query += fmt.Sprintf(" WHERE id = $%d", len(arg)+1)
+	query += fmt.Sprintf(" WHERE user_id = $%d", len(arg)+1)
 	arg = append(arg, req.Id)
 	_, err := r.db.Exec(query, arg...)
 	if err!= nil {

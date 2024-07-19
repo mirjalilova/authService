@@ -14,7 +14,7 @@ type Handlers struct {
 }
 
 func NewHandler(auth *service.AuthService, rdb *redis.Client) *Handlers {
-	pr, err := kafka.NewKafkaProducer([]string{"localhost:9092"})
+	pr, err := kafka.NewKafkaProducer([]string{"kafka:9092"})
 	if err != nil {
 		log.Fatal(err)
 	}

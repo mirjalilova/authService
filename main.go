@@ -30,7 +30,7 @@ func main() {
 	defer db.Db.Close()
 
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
+		Addr:     "redis:6379",
 		Password: "",
 		DB:       0,
 	})
@@ -39,7 +39,7 @@ func main() {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
 
-	brokers := []string{"localhost:9092"}
+	brokers := []string{"kafka:9092"}
 
 	kcm := kafka.NewKafkaConsumerManager()
 	authService := service.NewAuthService(db)
@@ -52,15 +52,29 @@ func main() {
 			slog.Error("Error registering consumer: %v", err)
 		}
 	}
-	if err := kcm.RegisterConsumer(brokers, "upd-user", "eval", kafka.UserEditProfileHandler(userService)); err != nil {
+	if err := kcm.RegisterConsumer(brokers, "upd-user", "auth", kafka.UserEditProfileHandler(userService)); err != nil {
 		if err == kafka.ErrConsumerAlreadyExists {
 			slog.Warn("Consumer for topic 'upd-user' already exists")
 		} else {
 			slog.Error("Error registering consumer: %v", err)
 		}
 	}
+	if err := kcm.RegisterConsumer(brokers, "upd-pass", "auth", kafka.UserEditPasswordHandler(userService)); err != nil {
+		if err == kafka.ErrConsumerAlreadyExists {
+			slog.Warn("Consumer for topic 'upd-pass' already exists")
+		} else {
+			slog.Error("Error registering consumer: %v", err)
+		}
+	}
+	if err := kcm.RegisterConsumer(brokers, "upd-setting", "auth", kafka.UserEditSettingHandler(userService)); err != nil {
+		if err == kafka.ErrConsumerAlreadyExists {
+			slog.Warn("Consumer for topic 'upd-setting' already exists")
+		} else {
+			slog.Error("Error registering consumer: %v", err)
+		}
+	}
 
-	listener, err := net.Listen("tcp", "auth" + cfg.USER_PORT)
+	listener, err := net.Listen("tcp", cfg.USER_PORT)
 	if err != nil {
 		slog.Error("can't listen: %v", err)
 	}
