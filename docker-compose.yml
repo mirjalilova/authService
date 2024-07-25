@@ -8,9 +8,8 @@ services:
     volumes:
       - ./migrations:/migrations
     command: [ "-path", "/migrations", "-database", 
-              "postgres://postgres:feruza1727@postgres:5432/timecapsule?sslmode=disable",
+              "postgres://postgres:feruza1727@database-1.c7cqkqsa66fu.us-east-2.rds.amazonaws.com:5432/postgres?sslmode=disable",
               "up" ]
-    # depends_on:
 
   redis:
     image: "redis:latest"
@@ -19,12 +18,41 @@ services:
       - "6379:6379"
     networks:
       - Time
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.4
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 22181:2181
+    networks:
+      - Time
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.4
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - 29092:29092
+    networks:
+      - Time
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
   
   auth-service:
     container_name: auth
     build: .
-    # depends_on:
-    #   - kafka /////////////////////////////////////////////
+    depends_on:
+      - kafka
 
     ports:
       - "8090:8090"
@@ -36,7 +64,7 @@ services:
       - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASSWORD=feruza1727
-      - DB_NAME=timecapsule
+      - DB_NAME=postgres
       - KAFKA_BROKER=kafka:9092
 
 networks:
@@ -45,5 +73,3 @@ networks:
     name: Time
     driver: bridge
 
-volumes:
-  db:
