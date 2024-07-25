@@ -19,8 +19,6 @@ services:
       - "6379:6379"
     networks:
       - Time
-
-
   
   auth-service:
     container_name: auth
